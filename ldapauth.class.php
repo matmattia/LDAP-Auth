@@ -1,18 +1,18 @@
 <?php
 /**
-* LDAPAuth Class
-* 
-* @name ldapauth.class.php
-* @author Mattia - http://www.matriz.it
-* @version 1.0.0
-* @date June 30, 2012
-* @category PHP Class
-* @copyright (c) 2012 Mattia at Matriz.it (info@matriz.it)
-* @license MIT - http://opensource.org/licenses/mit-license.php
-* @example Visit http://www.matriz.it/projects/ldap-auth/ for more informations about this PHP class
-*/
+ * LDAPAuth Class
+ * 
+ * @name ldapauth.class.php
+ * @author Mattia - http://www.matriz.it
+ * @version 1.1.0
+ * @date July 20, 2017
+ * @category PHP Class
+ * @copyright (c) 2017 Mattia at Matriz.it (info@matriz.it)
+ * @license MIT - http://opensource.org/licenses/mit-license.php
+ * @example Visit http://www.matriz.it/projects/ldap-auth/ for more informations about this PHP class
+ */
 
-class LDAPAuth{
+class LDAPAuth {
 	/**
 	 * Host a cui connettersi
 	 * @private
@@ -33,6 +33,27 @@ class LDAPAuth{
 	 * @var string
 	 */
 	private $domain = '';
+	
+	/**
+	 * Username
+	 * @private
+	 * @var string
+	 */
+	private $username = '';
+	
+	/**
+	 * Password
+	 * @private
+	 * @var string
+	 */
+	private $password = '';
+	
+	/**
+	 * Stabilisce se si è connessi con un utente
+	 * @private
+	 * @var boolean
+	 */
+	private $is_binded = false;
 	
 	/**
 	 * Connessione LDAP
@@ -93,6 +114,28 @@ class LDAPAuth{
 	}
 	
 	/**
+	 * Effettua il login
+	 * @private
+	 * @return boolean
+	 */
+	private function bind() {
+		$res = $this->isBinded();
+		if (!$res && $this->connect()) {
+			$res = $this->is_binded = $this->checkLogin($this->username, $this->password);
+		}
+		return $res;
+	}
+	
+	/**
+	 * Verifica che sia stata effettuata la connessione
+	 * @public
+	 * @return boolean
+	 */
+	public function isBinded() {
+		return $this->is_binded;
+	}
+	
+	/**
 	 * Assegna una configurazione
 	 * @public
 	 * @var string $type tipo di configurazione
@@ -103,12 +146,6 @@ class LDAPAuth{
 		$res = false;
 		$disconnect = false;
 		switch (is_string($type) ? $type : '') {
-			case 'domain':
-				if (is_string($value) && trim($value) != '') {
-					$this->domain = trim($value);
-					$res = true;
-				}
-			break;
 			case 'host':
 				if (is_string($value) && trim($value) != '') {
 					$this->host = trim($value);
@@ -121,6 +158,24 @@ class LDAPAuth{
 					$this->port = (int)$value;
 					$res = true;
 					$disconnect = true;
+				}
+			break;
+			case 'domain':
+				if (is_string($value) && trim($value) != '') {
+					$this->domain = trim($value);
+					$res = true;
+				}
+			break;
+			case 'username':
+				if (is_string($value) && trim($value) != '') {
+					$this->username = trim($value);
+					$res = true;
+				}
+			break;
+			case 'password':
+				if (is_string($value) && trim($value) != '') {
+					$this->password = trim($value);
+					$res = true;
 				}
 			break;
 		}
@@ -171,6 +226,37 @@ class LDAPAuth{
 	}
 	
 	/**
+	 * Restituisce i dati di un utente
+	 * @public
+	 * @var string $username username
+	 * @return array
+	 */
+	public function getUserData($username) {
+		$data = null;
+		if (is_string($username) && trim($username) != '' && $this->connect()) {
+			$this->bind();
+			$dn = 'CN=Users';
+			if ($this->domain != '') {
+				$dn .= ',DC='.$this->escape($this->domain, true);
+			}
+			$dn .= ',DC=local';
+			$results = @ldap_search($this->resource, $dn, '(samaccountname='.$this->escape($username, true).')');
+			if ($results) {
+				$entries = ldap_get_entries($this->resource, $results);
+				if (is_array($entries) && isset($entries['count']) && is_numeric($entries['count']) && $entries['count'] > 0) {
+					$data = array();
+					foreach ($entries[0] as $k => $v) {
+						if (is_array($v) && isset($v['count']) && is_numeric($v['count']) && $v['count'] > 0) {
+							$data[$k] = $v[0];
+						}
+					}
+				}
+			}
+		}
+		return $data;
+	}
+	
+	/**
 	 * Restituisce l'ultimo errore
 	 * @public
 	 * @return string|null
@@ -199,7 +285,7 @@ class LDAPAuth{
 			$chars = $is_dn ? array('\\', ',', '=', '+', '<', '>', ';', '"', '#') : array('\\', '*', '(', ')', chr(0));
 			$counter = count($chars);
 			for ($i = 0; $i < $counter; $i++) {
-				$t[$chars[$i]] = '\\'.str_pad(dechex(ord($c)), 2, '0', STR_PAD_LEFT);
+				$t[$chars[$i]] = '\\'.str_pad(dechex(ord($chars[$i])), 2, '0', STR_PAD_LEFT);
 			}
 			$s = strtr($s, $t);
 		} else {

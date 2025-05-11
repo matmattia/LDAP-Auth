@@ -4,12 +4,12 @@
  * 
  * @name ldapauth.class.php
  * @author Mattia - http://www.matriz.it
- * @version 1.2.0
- * @date February 14, 2020
+ * @version 1.2.1
+ * @date May 8, 2025
  * @category PHP Class
- * @copyright (c) 2017-2020 Mattia at Matriz.it (info@matriz.it)
- * @license MIT - http://opensource.org/licenses/mit-license.php
- * @example Visit http://www.matriz.it/projects/ldap-auth/ for more informations about this PHP class
+ * @copyright (c) 2017-2025 Mattia at Matriz.it (info@matriz.it)
+ * @license MIT - https://opensource.org/license/mit
+ * @example Visit https://www.matriz.it/projects/ldap-auth/ for more informations about this PHP class
  */
 
 class LDAPAuth {
@@ -155,7 +155,7 @@ class LDAPAuth {
 		$disconnect = false;
 		switch (is_string($type) ? $type : '') {
 			case 'host':
-				if (is_string($value) && trim($value) != '') {
+				if (is_string($value) && trim($value) !== '') {
 					$this->host = trim($value);
 					$res = true;
 					$disconnect = true;
@@ -163,7 +163,7 @@ class LDAPAuth {
 			break;
 			case 'port':
 				if (is_numeric($value)) {
-					$this->port = (int)$value;
+					$this->port = intval($value);
 					$res = true;
 					$disconnect = true;
 				}
@@ -174,19 +174,19 @@ class LDAPAuth {
 				$disconnect = true;
 			break;
 			case 'domain':
-				if (is_string($value) && trim($value) != '') {
+				if (is_string($value) && trim($value) !== '') {
 					$this->domain = trim($value);
 					$res = true;
 				}
 			break;
 			case 'username':
-				if (is_string($value) && trim($value) != '') {
+				if (is_string($value) && trim($value) !== '') {
 					$this->username = trim($value);
 					$res = true;
 				}
 			break;
 			case 'password':
-				if (is_string($value) && trim($value) != '') {
+				if (is_string($value) && trim($value) !== '') {
 					$this->password = trim($value);
 					$res = true;
 				}
@@ -264,7 +264,7 @@ class LDAPAuth {
 					$data = array();
 					foreach ($entries[0] as $k => $v) {
 						if (is_array($v) && isset($v['count']) && is_numeric($v['count']) && $v['count'] > 0) {
-							$data[$k] = is_string($v[0]) ? iconv('WINDOWS-1250', 'UTF-8', $v[0]) : $v[0];
+							$data[$k] = is_string($v[0]) ? iconv('WINDOWS-1250', 'UTF-8//TRANSLIT//IGNORE', $v[0]) : $v[0];
 						}
 					}
 				}

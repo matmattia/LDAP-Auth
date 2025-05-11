@@ -4,10 +4,10 @@
  * 
  * @name ldapauth.class.php
  * @author Mattia - http://www.matriz.it
- * @version 1.1.0
- * @date July 20, 2017
+ * @version 1.2.0
+ * @date February 14, 2020
  * @category PHP Class
- * @copyright (c) 2017 Mattia at Matriz.it (info@matriz.it)
+ * @copyright (c) 2017-2020 Mattia at Matriz.it (info@matriz.it)
  * @license MIT - http://opensource.org/licenses/mit-license.php
  * @example Visit http://www.matriz.it/projects/ldap-auth/ for more informations about this PHP class
  */
@@ -26,6 +26,12 @@ class LDAPAuth {
 	 * @var integer
 	 */
 	private $port = 389;
+	
+	/**
+	 * Stabilisce se si tratta di una connessione SSL
+	 * @var boolean
+	 */
+	private $ssl = false;
 	
 	/**
 	 * Dominio
@@ -78,8 +84,10 @@ class LDAPAuth {
 	private function connect() {
 		$res = $this->isConnected();
 		if (!$res && function_exists('ldap_connect')) {
-			$c = ldap_connect($this->host, $this->port);
+			$c = ldap_connect('ldap'.($this->ssl ? 's' : '').'://'.$this->host.':'.$this->port);
 			if ($c) {
+				ldap_set_option($c, LDAP_OPT_PROTOCOL_VERSION, 3);
+				ldap_set_option($c, LDAP_OPT_REFERRALS, 0);
 				$this->resource = $c;
 				$res = true;
 			}
@@ -160,6 +168,11 @@ class LDAPAuth {
 					$disconnect = true;
 				}
 			break;
+			case 'ssl':
+				$this->ssl = !!$value;
+				$res = true;
+				$disconnect = true;
+			break;
 			case 'domain':
 				if (is_string($value) && trim($value) != '') {
 					$this->domain = trim($value);
@@ -235,11 +248,15 @@ class LDAPAuth {
 		$data = null;
 		if (is_string($username) && trim($username) != '' && $this->connect()) {
 			$this->bind();
-			$dn = 'CN=Users';
+			$dn = '';
 			if ($this->domain != '') {
-				$dn .= ',DC='.$this->escape($this->domain, true);
+				foreach (explode('.', $this->domain) as $v) {
+					if ($dn != '') {
+						$dn .= ',';
+					}
+					$dn .= 'DC='.$this->escape($v, true);
+				}
 			}
-			$dn .= ',DC=local';
 			$results = @ldap_search($this->resource, $dn, '(samaccountname='.$this->escape($username, true).')');
 			if ($results) {
 				$entries = ldap_get_entries($this->resource, $results);
@@ -247,7 +264,7 @@ class LDAPAuth {
 					$data = array();
 					foreach ($entries[0] as $k => $v) {
 						if (is_array($v) && isset($v['count']) && is_numeric($v['count']) && $v['count'] > 0) {
-							$data[$k] = $v[0];
+							$data[$k] = is_string($v[0]) ? iconv('WINDOWS-1250', 'UTF-8', $v[0]) : $v[0];
 						}
 					}
 				}
